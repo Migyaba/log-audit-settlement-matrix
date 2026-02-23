@@ -4,20 +4,22 @@ Ce microservice est le module de **traçabilité et d'audit** pour la générati
 
 ## Objectifs du Projet
 Ce système garantit la transparence et la fiabilité des calculs financiers en :
-- Enregistrant les données sources (Transactions, snapshots de solde).
-- Versionnant automatiquement chaque recalcul (v1, v2, etc.).
-- Créant une "piste d'audit" (Audit Trail) infalsifiable.
+- Enregistrant les données sources pour chaque génération (ID transactions, plages horaires, état initial).
+- Consignant la version de l'algorithme ou des règles métier utilisée.
+- Empêchant l'écrasement des anciennes versions (Système immuable).
+- Sauvegardant chaque version avec un numéro (v1, v2...) et un lien vers la précédente (Linéage).
 
 ## Stack Technique
-- **Framework** : FastAPI (Python)
+- **Framework** : FastAPI (Python 3.12+)
 - **Base de données** : SQLite (via SQLAlchemy)
 - **Validation** : Pydantic
-- **Standard Temps** : ISO 8601 (UTC)
+- **Standard Temps** : ISO 8601 avec synchronisation **UTC** (`timezone.utc`).
 
 ## Fonctionnalités Clés
-- **Append-Only** : Aucune suppression ou modification possible des logs.
-- **Auto-Versioning** : Le service détecte automatiquement la version précédente pour lier les calculs entre eux.
-- **Extraction de Rapport** : Génération d'un rapport complet pour les auditeurs externes au format JSON.
+- **Append-Only** : L'accès est restreint à l'ajout. Aucune route de modification (`UPDATE`) ou de suppression (`DELETE`) n'est exposée.
+- **Auto-Versioning** : Le service détecte automatiquement la progression des versions pour une matrice donnée.
+- **Multi-Format Export** : Génération de rapports d'audit en formats **JSON** et **CSV** pour les auditeurs.
+- **Lecture Seule** : Les endpoints de consultation garantissent l'intégrité des données pour les utilisateurs finaux.
 
 ## Installation
 
@@ -34,14 +36,14 @@ Ce système garantit la transparence et la fiabilité des calculs financiers en 
 
 3. **Lancement** :
    ```bash
-   uvicorn main:app --reload
+   uvicorn main:app --reload --port 8001
    ```
 
 ## Utilisation de l'API
 
 ### 1. Enregistrer un Audit (POST)
 **Endpoint** : `/audit/log`  
-**Description** : Appelé par le moteur de calcul après chaque génération de matrice.
+**Description** : Enregistre un nouveau calcul immuable.
 ```json
 {
   "matrix_id": "SETTLEMENT-32",
@@ -50,20 +52,22 @@ Ce système garantit la transparence et la fiabilité des calculs financiers en 
     "period": "2026-02-23 AM"
   },
   "algorithm_version": "v1.2.0",
-  "comment": "Calcul initial"
+  "comment": "Calcul initial après correction"
 }
 ```
 
 ### 2. Consulter l'Historique (GET)
 **Endpoint** : `/audit/matrix/{matrix_id}`  
-**Description** : Affiche toutes les étapes de calcul pour une matrice spécifique.
+**Description** : Affiche la chronologie complète des calculs incluant les liens de version.
 
 ### 3. Extraire le Rapport Auditeur (GET)
 **Endpoint** : `/audit/report/{matrix_id}`  
-**Description** : Génère une preuve de calcul structurée incluant les données techniques de chaque version.
+**Format JSON (défaut)** : `GET /audit/report/M-101`  
+**Format CSV** : `GET /audit/report/M-101?format=csv`  
+**Description** : Génère une piste d'audit complète incluant le nombre de transactions traitées et les détails techniques.
 
 ## Sécurité et Audit
-Toutes les dates sont enregistrées en **UTC** selon la norme ISO 8601. Le système utilise un mécanisme de **previous_version_id** pour garantir qu'aucune version de l'historique n'a été supprimée ou altérée.
+Toutes les dates sont enregistrées selon la norme **ISO 8601** en utilisant `datetime.now(timezone.utc)`. La structure de données utilise une contrainte de clé étrangère `previous_version_id` pour assurer l'intégrité de la chaîne de calculs. Le service est conçu pour être "Read-Only" pour tous les clients de consultation.
 
 ---
 *Settlement Matrix - Mojaloop Hub.*
