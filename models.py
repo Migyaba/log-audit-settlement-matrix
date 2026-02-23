@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, DateTime, JSON, ForeignKey
 from sqlalchemy.orm import relationship
-from datetime import datetime
+from datetime import datetime, timezone
 from database import Base
 
 class MatrixAuditLog(Base):
@@ -27,7 +27,7 @@ class MatrixAuditLog(Base):
     previous_version_id = Column(Integer, ForeignKey("matrix_audit_logs.id"), nullable=True)
     
     # Critère : Horodatage synchronisé (ISO 8601 géré par Python)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     
     # Informations sur l'auteur de l'action
     triggered_by = Column(String, nullable=True)
